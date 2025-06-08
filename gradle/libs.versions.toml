@@ -1,0 +1,30 @@
+[versions]
+agp = "8.5.2"
+dokka = "2.0.0"
+kotlin = "2.1.21"
+android-minSdk = "24"
+android-compileSdk = "34"
+duks = "0.2.0"
+lmdb = "0.3.1"
+kotlinx-datetime = "0.6.2"
+kotlinx-coroutines = "1.10.2"
+kotlinx-serialization = "1.8.1"
+kotlinx-io = "0.7.0"
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
+duks = { group = "io.github.crowded-libs", name="duks", version.ref = "duks" }
+lmdb = { group = "io.github.crowded-libs", name="kotlin-lmdb", version.ref = "lmdb" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+[plugins]
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.30.0" }

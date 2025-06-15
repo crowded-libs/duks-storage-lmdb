@@ -15,20 +15,21 @@ data class TestState(
 
 class LmdbStateStorageTest {
     
-    private lateinit var testStorage: TestStorageWrapper
+    private lateinit var testEnv: TestEnvWrapper
     private lateinit var storage: StateStorage<TestState>
     
     @BeforeTest
     fun setup() {
-        testStorage = createTestStorage()
-        storage = testStorage.storage.createStateStorage(
+        testEnv = createTestEnv()
+        storage = LmdbStateStorage(
+            env = testEnv.env,
             serializer = jsonSerializer<TestState>()
         )
     }
     
     @AfterTest
     fun tearDown() {
-        testStorage.close()
+        testEnv.close()
     }
     
     @Test

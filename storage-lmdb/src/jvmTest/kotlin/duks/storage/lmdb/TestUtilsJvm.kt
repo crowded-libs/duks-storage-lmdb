@@ -1,6 +1,7 @@
 package duks.storage.lmdb
 
 import kotlinx.io.files.*
+import lmdb.Env
 import kotlin.uuid.Uuid
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -8,7 +9,7 @@ import kotlin.uuid.ExperimentalUuidApi
  * JVM-specific implementation of test utilities.
  */
 @OptIn(ExperimentalUuidApi::class)
-actual fun createTestStorage(): TestStorageWrapper {
+actual fun createTestEnv(): TestEnvWrapper {
     val fs = SystemFileSystem
     // Use UUID to ensure unique paths
     val uuid = Uuid.random()
@@ -18,13 +19,10 @@ actual fun createTestStorage(): TestStorageWrapper {
         fs.createDirectories(testPath, true)
     }
     
-    val config = LmdbStorageConfig(
-        path = testPath.toString(),
-        mapSize = 10485760L, // 10MB
-        maxDbs = 10
-    )
-    
-    val storage = LmdbDuksStorage(config)
-    
-    return TestStorageWrapper(storage, testPath.toString())
+    val env = Env()
+    env.mapSize = 10UL * 1024UL * 1024UL
+    env.maxDatabases = 5u
+    env.open(testPath.toString())
+
+    return TestEnvWrapper(env, testPath.toString())
 }

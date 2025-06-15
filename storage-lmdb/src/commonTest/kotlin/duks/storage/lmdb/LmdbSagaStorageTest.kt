@@ -17,20 +17,21 @@ data class TestSagaState(
 
 class LmdbSagaStorageTest {
     
-    private lateinit var testStorage: TestStorageWrapper
+    private lateinit var testEnv: TestEnvWrapper
     private lateinit var storage: SagaStorage
     
     @BeforeTest
     fun setup() {
-        testStorage = createTestStorage()
-        storage = testStorage.storage.createSagaStorage(
+        testEnv = createTestEnv()
+        storage = LmdbSagaStorage(
+            env = testEnv.env,
             sagaSerializer = PersistedSagaInstanceSerializer()
         )
     }
     
     @AfterTest
     fun tearDown() {
-        testStorage.close()
+        testEnv.close()
     }
     
     @Test

@@ -3,35 +3,34 @@ package duks.storage.lmdb
 import duks.SagaInstance
 import duks.storage.PersistedSagaInstance
 import duks.storage.SagaStorage
-import lmdb.*
+import duks.logging.*
+import lmdb.Env
 
 /**
  * LMDB-based implementation of SagaStorage for persisting saga instances.
  * Each saga instance is stored with its ID as the key.
  * 
- * @param env The LMDB environment to use
+ * @param env The LMDB environment to use (must be already opened)
  * @param sagaSerializer Serializer for converting PersistedSagaInstance to/from bytes
  * @param databaseName The name of the database within the LMDB environment (default: "sagas")
  */
 class LmdbSagaStorage(
-    private val env: Env,
-    private val sagaSerializer: Serializer<PersistedSagaInstance>,
-    private val databaseName: String = "sagas"
+    env: Env,
+    sagaSerializer: Serializer<PersistedSagaInstance>,
+    databaseName: String = "sagas"
 ) : SagaStorage {
 
-    private val dbi: Dbi
-
-    init {
-        val tx = env.beginTxn()
-        try {
-            dbi = tx.dbiOpen(databaseName, DbiOption.Create)
-            tx.commit()
-        } finally {
-            tx.close()
-        }
+    companion object {
+        private val logger = Logger.default()
     }
+
+    private val storage = LmdbKeyValueStorage(env, sagaSerializer, databaseName)
     
     override suspend fun save(sagaId: String, instance: SagaInstance<*>) {
+        val sagaName = instance.sagaName
+        logger.debug(sagaName, sagaId) { 
+            "Saving saga {sagaName} with ID {sagaId}" 
+        }
         val persisted = PersistedSagaInstance(
             id = instance.id,
             sagaName = instance.sagaName,
@@ -40,51 +39,20 @@ class LmdbSagaStorage(
             lastUpdatedAt = instance.lastUpdatedAt
         )
         
-        val bytes = sagaSerializer.serialize(persisted)
-        env.beginTxn {
-            put(dbi, sagaId.encodeToByteArray(), bytes)
-            commit()
-        }
+        storage.put(sagaId, persisted)
     }
     
     override suspend fun load(sagaId: String): SagaInstance<*>? {
-        var result: SagaInstance<*>? = null
-        env.beginTxn(TxnOption.ReadOnly) {
-            val getResult = get(dbi, sagaId.encodeToByteArray())
-            if (getResult.resultCode == 0) {
-                val bytes = getResult.data.toByteArray()
-                if (bytes != null) {
-                    val persisted = sagaSerializer.deserialize(bytes)
-                    result = deserializeSagaInstance(persisted)
-                }
-            }
-        }
-        return result
+        val persisted = storage.get(sagaId)
+        return persisted?.let { deserializeSagaInstance(it) }
     }
     
     override suspend fun remove(sagaId: String) {
-        env.beginTxn {
-            delete(dbi, sagaId.encodeToByteArray())
-            commit()
-        }
+        storage.delete(sagaId)
     }
     
     override suspend fun getAllSagaIds(): Set<String> {
-        val sagaIds = mutableSetOf<String>()
-        env.beginTxn(TxnOption.ReadOnly) {
-            val cursor = openCursor(dbi)
-            cursor.use {
-                var result = cursor.first()
-                while (result.resultCode == 0) {
-                    val key = result.key.toByteArray()
-                    if (key != null) {
-                        sagaIds.add(key.decodeToString())
-                    }
-                    result = cursor.next()
-                }
-            }
-        }
-        return sagaIds
+        return storage.getAllKeys()
     }
     
     
@@ -96,6 +64,9 @@ class LmdbSagaStorage(
     private fun serializeState(state: Any): String {
         // For now, just use toString(). In a real implementation,
         // you would need a proper serialization strategy.
+        logger.warn { 
+            "Using basic serialization for saga state - consider implementing proper serialization" 
+        }
         return state.toString()
     }
     
@@ -117,80 +88,33 @@ class LmdbSagaStorage(
     }
 }
 
-/**
- * Creates an LmdbSagaStorage instance with its own environment.
- * This constructor is provided for backward compatibility.
- * Consider using LmdbDuksStorage.createSagaStorage() for shared environment usage.
- */
-fun LmdbSagaStorage(
-    config: LmdbStorageConfig,
-    sagaSerializer: Serializer<PersistedSagaInstance>,
-    databaseName: String = "sagas"
-): LmdbSagaStorage {
-    val env = Env().apply {
-        mapSize = config.mapSize.toULong()
-        maxDatabases = config.maxDbs.toUInt()
-        maxReaders = config.maxReaders.toUInt()
-        open(
-            config.path,
-            *buildList {
-                if (config.readOnly) add(EnvOption.ReadOnly)
-                add(EnvOption.NoTLS)
-            }.toTypedArray()
-        )
-    }
-    
-    return LmdbSagaStorage(
-        env = env,
-        sagaSerializer = sagaSerializer,
-        databaseName = databaseName
-    )
-}
 
 /**
- * Factory function to create an LmdbSagaStorage instance with proper saga state serialization.
- * This variant accepts a SagaStateSerializer from the duks library for proper state handling.
- * This constructor is provided for backward compatibility.
- * Consider using LmdbDuksStorage.createSagaStorage() for shared environment usage.
+ * LMDB-based SagaStorage implementation that uses the duks SagaStateSerializer for proper state handling.
+ * 
+ * @param env The LMDB environment to use (must be already opened)
+ * @param persistedSagaSerializer Serializer for converting PersistedSagaInstance to/from bytes
+ * @param sagaStateSerializer Serializer from the duks library for proper state handling
+ * @param databaseName The name of the database within the LMDB environment (default: "sagas")
  */
-fun createLmdbSagaStorage(
-    config: LmdbStorageConfig,
+class LmdbSagaStorageWithStateSerializer(
+    env: Env,
     persistedSagaSerializer: Serializer<PersistedSagaInstance>,
-    sagaStateSerializer: duks.storage.SagaStateSerializer
-): SagaStorage {
-    val env = Env().apply {
-        mapSize = config.mapSize.toULong()
-        maxDatabases = config.maxDbs.toUInt()
-        maxReaders = config.maxReaders.toUInt()
-        open(
-            config.path,
-            *buildList {
-                if (config.readOnly) add(EnvOption.ReadOnly)
-                add(EnvOption.NoTLS)
-            }.toTypedArray()
-        )
-    }
-    
-    return LmdbSagaStorageWithStateSerializer(
-        env = env,
-        persistedSagaSerializer = persistedSagaSerializer,
-        sagaStateSerializer = sagaStateSerializer
-    )
-}
-
-/**
- * Internal implementation that uses the duks SagaStateSerializer for proper state handling.
- */
-internal class LmdbSagaStorageWithStateSerializer(
-    private val env: Env,
-    private val persistedSagaSerializer: Serializer<PersistedSagaInstance>,
     private val sagaStateSerializer: duks.storage.SagaStateSerializer,
-    private val databaseName: String = "sagas"
+    databaseName: String = "sagas"
 ) : SagaStorage {
     
-    private var dbi: Dbi? = null
+    companion object {
+        private val logger = Logger.default()
+    }
+    
+    private val storage = LmdbKeyValueStorage(env, persistedSagaSerializer, databaseName)
     
     override suspend fun save(sagaId: String, instance: SagaInstance<*>) {
+        val sagaName = instance.sagaName
+        logger.debug(sagaName, sagaId) { 
+            "Saving saga {sagaName} with ID {sagaId}" 
+        }
         val persisted = PersistedSagaInstance(
             id = instance.id,
             sagaName = instance.sagaName,
@@ -199,80 +123,29 @@ internal class LmdbSagaStorageWithStateSerializer(
             lastUpdatedAt = instance.lastUpdatedAt
         )
         
-        val bytes = persistedSagaSerializer.serialize(persisted)
-        env.beginTxn {
-            val db = dbi ?: dbiOpen(databaseName, DbiOption.Create).also { dbi = it }
-            put(db, sagaId.encodeToByteArray(), bytes)
-            commit()
-        }
+        storage.put(sagaId, persisted)
     }
     
     override suspend fun load(sagaId: String): SagaInstance<*>? {
-        // If we haven't opened the database yet, create it
-        if (dbi == null) {
-            env.beginTxn {
-                dbi = dbiOpen(databaseName, DbiOption.Create)
-                commit()
-            }
+        val persisted = storage.get(sagaId)
+        return persisted?.let {
+            val state = sagaStateSerializer.deserialize(it.state, it.sagaName)
+            SagaInstance(
+                id = it.id,
+                sagaName = it.sagaName,
+                state = state,
+                startedAt = it.startedAt,
+                lastUpdatedAt = it.lastUpdatedAt
+            )
         }
-        
-        var result: SagaInstance<*>? = null
-        env.beginTxn(TxnOption.ReadOnly) {
-            val db = dbi!!
-            val getResult = get(db, sagaId.encodeToByteArray())
-            if (getResult.resultCode == 0) {
-                val bytes = getResult.data.toByteArray()
-                if (bytes != null) {
-                    val persisted = persistedSagaSerializer.deserialize(bytes)
-                    val state = sagaStateSerializer.deserialize(persisted.state, persisted.sagaName)
-                    result = SagaInstance(
-                        id = persisted.id,
-                        sagaName = persisted.sagaName,
-                        state = state,
-                        startedAt = persisted.startedAt,
-                        lastUpdatedAt = persisted.lastUpdatedAt
-                    )
-                }
-            }
-        }
-        return result
     }
     
     override suspend fun remove(sagaId: String) {
-        if (dbi == null) return // Nothing to remove
-        
-        env.beginTxn {
-            val db = dbi!!
-            delete(db, sagaId.encodeToByteArray())
-            commit()
-        }
+        storage.delete(sagaId)
     }
     
     override suspend fun getAllSagaIds(): Set<String> {
-        // If we haven't opened the database yet, create it
-        if (dbi == null) {
-            env.beginTxn {
-                dbi = dbiOpen(databaseName, DbiOption.Create)
-                commit()
-            }
-        }
-        
-        val sagaIds = mutableSetOf<String>()
-        env.beginTxn(TxnOption.ReadOnly) {
-            val db = dbi!!
-            val cursor = openCursor(db)
-            cursor.use {
-                var result = cursor.first()
-                while (result.resultCode == 0) {
-                    val key = result.key.toByteArray()
-                    if (key != null) {
-                        sagaIds.add(key.decodeToString())
-                    }
-                    result = cursor.next()
-                }
-            }
-        }
-        return sagaIds
+        return storage.getAllKeys()
     }
     
 }

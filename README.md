@@ -24,7 +24,7 @@ dependencies {
 
 ### Recommended: Shared Environment Pattern
 
-The recommended way to use this library is through the `LmdbDuksStorage` class, which manages a single LMDB environment shared between all storage instances:
+The recommended way to use this library is to create a single LMDB environment and pass it to your storage instances:
 
 ```kotlin
 import duks.storage.lmdb.*
@@ -57,16 +57,18 @@ val config = LmdbStorageConfig(
     mapSize = 10 * 1024 * 1024 // 10MB
 )
 
-// Create the central storage manager
-val duksStorage = LmdbDuksStorage(config)
+// Create the LMDB environment
+val env = createLmdbEnv(config)
 
 // Create state storage
-val stateStorage = duksStorage.createStateStorage(
+val stateStorage = LmdbStateStorage(
+    env = env,
     serializer = JsonSerializer<AppState>()
 )
 
 // Create saga storage
-val sagaStorage = duksStorage.createSagaStorage(
+val sagaStorage = LmdbSagaStorage(
+    env = env,
     sagaSerializer = JsonSerializer<PersistedSagaInstance>()
 )
 
@@ -83,8 +85,8 @@ val sagaInstance = SagaInstance(
 )
 sagaStorage.save(sagaInstance.id, sagaInstance)
 
-// Remember to close the shared environment when done
-duksStorage.close()
+// Remember to close the environment when done
+env.close()
 ```
 
 ### Multiple Storage Instances
@@ -92,22 +94,67 @@ duksStorage.close()
 You can create multiple storage instances with different database names within the same environment:
 
 ```kotlin
+// Create a shared environment
+val env = createLmdbEnv(config)
+
 // Create multiple state storages
-val userStateStorage = duksStorage.createStateStorage(
+val userStateStorage = LmdbStateStorage(
+    env = env,
     serializer = JsonSerializer<UserState>(),
     databaseName = "user_state"
 )
 
-val configStateStorage = duksStorage.createStateStorage(
+val configStateStorage = LmdbStateStorage(
+    env = env,
     serializer = JsonSerializer<ConfigState>(),
     databaseName = "config_state"
 )
 
-val sagaStorage = duksStorage.createSagaStorage(
+val sagaStorage = LmdbSagaStorage(
+    env = env,
     sagaSerializer = JsonSerializer<PersistedSagaInstance>(),
     databaseName = "sagas"
 )
+
+// Or use the general-purpose key-value storage
+val kvStorage = LmdbKeyValueStorage(
+    env = env,
+    databaseName = "custom_data"
+)
 ```
+
+### General-Purpose Key-Value Storage
+
+For custom use cases, you can use the `LmdbKeyValueStorage` class directly:
+
+```kotlin
+// Define your custom data type
+@Serializable
+data class UserData(
+    val id: String,
+    val name: String,
+    val email: String
+)
+
+// Create type-safe storage
+val kvStorage = LmdbKeyValueStorage(
+    env = env,
+    serializer = JsonSerializer<UserData>(),
+    databaseName = "user_data"
+)
+
+// Store and retrieve typed data
+val user = UserData("123", "John Doe", "john@example.com")
+kvStorage.put("user:123", user)
+
+val retrieved = kvStorage.get("user:123")
+val exists = kvStorage.exists("user:123")
+kvStorage.delete("user:123")
+
+// Get all keys
+val allKeys = kvStorage.getAllKeys()
+```
+
 ### Serialization
 
 The library uses a `Serializer` interface to allow flexibility in how data is serialized:
@@ -137,6 +184,32 @@ data class LmdbStorageConfig(
     val readOnly: Boolean = false  // Open in read-only mode
 )
 ```
+
+## API Overview
+
+### Core Classes
+
+1. **`LmdbKeyValueStorage<T>`** - Generic key-value storage with built-in serialization
+   - Type-safe storage and retrieval
+   - Supports any serializable type
+   - Full CRUD operations
+
+2. **`LmdbStateStorage<T>`** - StateStorage implementation for duks
+   - Single state per database
+   - Built on top of `LmdbKeyValueStorage`
+   - Uses a fixed key internally
+
+3. **`LmdbSagaStorage`** - SagaStorage implementation for duks
+   - Multiple sagas per database
+   - Built on top of `LmdbKeyValueStorage`
+   - Saga ID as key
+
+### Design Benefits
+
+- **Minimal Redundancy**: All storage classes share the same underlying implementation
+- **Type Safety**: Generic typing ensures compile-time safety
+- **Flexibility**: Use `LmdbKeyValueStorage` directly for custom storage needs
+- **Simplicity**: Each class has a single, focused responsibility
 
 ## Multiplatform Support
 

@@ -1,5 +1,6 @@
 package duks.storage.lmdb
 
+import lmdb.Env
 import kotlin.uuid.Uuid
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -10,7 +11,7 @@ import kotlin.uuid.ExperimentalUuidApi
  * kotlin-lmdb 0.3.1 includes host platform libraries for testing.
  */
 @OptIn(ExperimentalUuidApi::class)
-actual fun createTestStorage(): TestStorageWrapper {
+actual fun createTestEnv(): TestEnvWrapper {
     val uuid = Uuid.random().toString().take(8)
     val tempDir = System.getProperty("java.io.tmpdir") ?: "/tmp"
     val testPath = "$tempDir/lmdb-test-$uuid"
@@ -21,11 +22,9 @@ actual fun createTestStorage(): TestStorageWrapper {
         throw RuntimeException("Failed to create test directory: $testPath")
     }
     
-    val config = LmdbStorageConfig(
-        path = testPath,
-        mapSize = 10485760L, // 10MB
-        maxDbs = 10
-    )
-    val storage = LmdbDuksStorage(config)
-    return TestStorageWrapper(storage, testPath)
+    val env = Env()
+    env.mapSize = 10UL * 1024UL * 1024UL
+    env.maxDatabases = 5u
+    env.open(testPath)
+    return TestEnvWrapper(env, testPath)
 }

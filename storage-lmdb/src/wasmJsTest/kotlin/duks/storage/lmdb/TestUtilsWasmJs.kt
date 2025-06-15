@@ -1,5 +1,6 @@
 package duks.storage.lmdb
 
+import lmdb.Env
 import lmdb.WasmUtils
 import kotlin.uuid.Uuid
 import kotlin.uuid.ExperimentalUuidApi
@@ -11,7 +12,7 @@ import kotlin.uuid.ExperimentalUuidApi
  */
 
 @OptIn(ExperimentalUuidApi::class)
-actual fun createTestStorage(): TestStorageWrapper {
+actual fun createTestEnv(): TestEnvWrapper {
     // For WasmJS Node environment, NODEFS is mounted at /tmp -> .
     // We need to use /tmp path which maps to the current directory
 
@@ -24,13 +25,10 @@ actual fun createTestStorage(): TestStorageWrapper {
         println(e)
     }
     
-    val config = LmdbStorageConfig(
-        path = testPath,
-        mapSize = 10485760L, // 10MB
-        maxDbs = 10
-    )
-    
-    val storage = LmdbDuksStorage(config)
-    
-    return TestStorageWrapper(storage, testPath)
+    val env = Env()
+    env.mapSize = 10UL * 1024UL * 1024UL
+    env.maxDatabases = 5u
+    env.open(testPath)
+
+    return TestEnvWrapper(env, testPath)
 }

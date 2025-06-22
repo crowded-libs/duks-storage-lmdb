@@ -2,6 +2,12 @@
 
 LMDB-based persistent storage implementation for the [duks](https://github.com/crowded-libs/duks) library.
 
+[![Build](https://github.com/crowded-libs/duks-storage-lmdb/actions/workflows/build.yml/badge.svg)](https://github.com/crowded-libs/duks-storage-lmdb/actions/workflows/build.yml)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.1.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.crowded-libs/duks-storage-lmdb.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.crowded-libs%22%20AND%20a:%22duks-storage-lmdb%22)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+
 ## Overview
 
 This library provides persistent storage implementations for duks using LMDB (Lightning Memory-Mapped Database). LMDB is an ultra-fast, ultra-compact key-value embedded data store that provides:

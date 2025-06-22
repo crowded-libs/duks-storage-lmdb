@@ -179,18 +179,6 @@ You can implement this interface using any serialization library:
 - Protocol Buffers
 - etc.
 
-### Configuration Options
-
-```kotlin
-data class LmdbStorageConfig(
-    val path: String,              // Path to the database directory
-    val maxDbs: Int = 10,          // Maximum number of named databases
-    val mapSize: Long = 10485760,  // Maximum size of the database (10MB default)
-    val maxReaders: Int = 126,     // Maximum number of concurrent readers
-    val readOnly: Boolean = false  // Open in read-only mode
-)
-```
-
 ## API Overview
 
 ### Core Classes
@@ -224,13 +212,6 @@ This library supports the following Kotlin Multiplatform targets:
 - Android ✅
 - iOS (x64, arm64, simulatorArm64) ✅
 - WasmJS ✅
-
-### Testing Notes
-
-- **JVM Tests**: Run with `./gradlew :storage-lmdb:jvmTest` ✅
-- **iOS Tests**: Run with `./gradlew :storage-lmdb:iosSimulatorArm64Test` (or other iOS targets) ✅
-- **Android Tests**: Run with `./gradlew :storage-lmdb:testDebugUnitTest`. Uses kotlin-lmdb 0.3.1+ which includes host platform libraries for testing. ✅
-- **WasmJS Tests**: Run with `./gradlew :storage-lmdb:wasmJsNodeTest` ✅
 
 ## License
 

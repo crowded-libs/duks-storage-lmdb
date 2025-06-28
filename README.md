@@ -3,7 +3,7 @@
 LMDB-based persistent storage implementation for the [duks](https://github.com/crowded-libs/duks) library.
 
 [![Build](https://github.com/crowded-libs/duks-storage-lmdb/actions/workflows/build.yml/badge.svg)](https://github.com/crowded-libs/duks-storage-lmdb/actions/workflows/build.yml)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.1.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.2.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.crowded-libs/duks-storage-lmdb.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.crowded-libs%22%20AND%20a:%22duks-storage-lmdb%22)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -22,7 +22,7 @@ Add the dependency to your project:
 
 ```kotlin
 dependencies {
-    implementation("io.github.crowded-libs:duks-storage-lmdb:0.1.0")
+    implementation("io.github.crowded-libs:duks-storage-lmdb:0.1.1")
 }
 ```
 

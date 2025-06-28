@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "io.github.crowded-libs"
-version = "0.1.0"
+version = "0.1.1"
 
 kotlin {
     jvm()
@@ -51,7 +51,6 @@ kotlin {
                 implementation(libs.duks)
                 implementation(libs.lmdb)
                 implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.datetime)
             }
         }
 
@@ -98,14 +97,14 @@ val dokkaHtmlJar by tasks.registering(Jar::class) {
 }
 
 // Function to copy WASM resources for tests
-fun copyWasmResources() {
-    val jsPackagesDir = rootProject.layout.buildDirectory.dir("js/packages").get().asFile
+fun copyWasmResources(targetType: String) {
+    val packagesDir = rootProject.layout.buildDirectory.dir("$targetType/packages").get().asFile
     val lmdbVersion = libs.versions.lmdb.get()
-    val lmdbPackageDir = rootProject.layout.buildDirectory.dir("js/packages_imported/kotlin-lmdb-wasm-js/$lmdbVersion/kotlin").get().asFile
+    val lmdbPackageDir = rootProject.layout.buildDirectory.dir("$targetType/packages_imported/kotlin-lmdb-wasm-js/$lmdbVersion/kotlin").get().asFile
     
-    if (lmdbPackageDir.exists() && jsPackagesDir.exists()) {
+    if (lmdbPackageDir.exists() && packagesDir.exists()) {
         // Find all test kotlin directories
-        jsPackagesDir.walkTopDown().forEach { dir ->
+        packagesDir.walkTopDown().forEach { dir ->
             if (dir.name == "kotlin" && dir.isDirectory && 
                 dir.absolutePath.contains("test")) {
                 
@@ -128,13 +127,13 @@ fun copyWasmResources() {
 // Copy WASM resources for both Node.js and browser tests
 tasks.named("wasmJsNodeTest") {
     doFirst {
-        copyWasmResources()
+        copyWasmResources("wasm")
     }
 }
 
 tasks.named("wasmJsBrowserTest") {
     doFirst {
-        copyWasmResources()
+        copyWasmResources("wasm")
     }
 }
 
